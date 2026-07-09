@@ -87,14 +87,27 @@ matching commands in every step.
 This repo already includes scripts that perform Steps 2–6 with friendly prompts
 and automatic retries. If you can run commands, prefer these:
 
+> **Working directory matters — do not assume it.** The paths below are relative
+> to the **repository root** (the folder that contains this `AGENTS.md`). A
+> terminal rarely starts there: on Mac it opens in the home folder (`~`), not in
+> the repo. So first move into the repo, then run the script. Replace
+> `/full/path/to/the/repo` with the actual path (if you cloned it, it's the
+> folder `git clone` created; if the student downloaded the ZIP from GitHub, the
+> extracted folder is usually named `<repo>-main`).
+
 - **Mac:**
   ```bash
+  cd "/full/path/to/the/repo"          # the folder that contains AGENTS.md
   bash scripts/mac/setup-github-ssh.sh
   ```
 - **Windows (PowerShell):**
   ```powershell
+  cd "C:\full\path\to\the\repo"         # the folder that contains AGENTS.md
   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\lib\setup-github-ssh.ps1
   ```
+
+(Alternatively, pass the script's **full path** instead of `cd`-ing first — either
+way, never rely on the terminal's starting directory.)
 
 The script is **interactive**: it asks for the email and name, then opens GitHub
 and waits at the key step. Make sure the student can see the terminal and answer
@@ -232,7 +245,9 @@ but pushing changes requires the collaborator invite.)
 
 ## Verify everything (recommended)
 
-A read-only check script confirms all of the above without changing anything:
+A read-only check script confirms all of the above without changing anything.
+Run it **from the repository root** (`cd` into the repo first — see the
+working-directory note under *Fast path*; the terminal does not start there):
 
 - **Mac:** `bash scripts/mac/check-github-ssh.sh`
 - **Windows:** `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\lib\check-github-ssh.ps1`
@@ -245,7 +260,7 @@ A read-only check script confirms all of the above without changing anything:
 | `git: command not found` / "not recognized" | Git isn't installed or the PATH wasn't refreshed. Redo Step 2 and open a **new** terminal/PowerShell window. |
 | macOS popup: "command line developer tools" | That's the Git install from Step 2. The student clicks **Install** and waits. |
 | `ssh: command not found` (Windows) | Install the **OpenSSH Client** optional feature (Step 2). |
-| Wrong email on commits | Run `scripts/mac/fix-github-email.sh` (Mac) or `scripts\windows\lib\fix-github-email.ps1` (Windows), or just rerun the two `git config --global` commands from Step 5. |
+| Wrong email on commits | From the repo root, run `scripts/mac/fix-github-email.sh` (Mac) or `scripts\windows\lib\fix-github-email.ps1` (Windows) — `cd` into the repo first. Or just rerun the two `git config --global` commands from Step 5 (those work from any folder). |
 | A key already exists | Reuse the existing `~/.ssh/id_ed25519`. Do **not** overwrite it. |
 | Student's tool can't run commands | Switch to **Mode B**: give copy-paste commands one block at a time. |
 

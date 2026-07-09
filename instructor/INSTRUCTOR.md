@@ -72,8 +72,24 @@ The script invites every username in its list and reports each result. Notes:
 Students without an AI assistant can still use the kit by hand:
 
 - **ZIP:** open the repo page → green **`<> Code`** button → **Download ZIP**,
-  extract it, then (Mac) run `scripts/mac/setup-github-ssh.sh` in Terminal, or
-  (Windows) double-click `scripts\windows\setup-github-ssh.bat`.
+  then extract it (Mac: double-click the `.zip`; Windows: right-click →
+  **Extract All…**). The extracted folder is named after the repository — for a
+  GitHub download that's usually **`<repo>-main`**, not a fixed name, so don't
+  rely on a specific folder name.
+  - **Mac:** Terminal does **not** open inside that folder (it starts in the
+    home folder `~`), so point it there first. In Terminal type `cd ` (the
+    letters c-d and a **space**), then **drag the extracted folder** from Finder
+    onto the Terminal window so its path pastes in, press **Enter**, and only
+    then run:
+    ```bash
+    bash scripts/mac/setup-github-ssh.sh
+    ```
+    Even simpler (no typing a path): type `bash ` (with a space) and **drag the
+    `setup-github-ssh.sh` file itself** onto Terminal, then press Enter.
+  - **Windows:** just **double-click** `scripts\windows\setup-github-ssh.bat`
+    inside the extracted folder. It locates its own files (via `%~dp0`), so the
+    current directory doesn't matter. If SmartScreen appears: **More info → Run
+    anyway**.
 - **One-line install** (after the kit is on `main`; replace `OWNER/REPO`):
 
   **Mac** (Terminal):

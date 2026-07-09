@@ -8,7 +8,12 @@
 #   - Verifies the connection with GitHub still works.
 # It does NOT touch your key, and you don't need to paste it into GitHub again.
 #
-# How to use it: open Terminal and run:  bash fix-github-email.sh
+# How to use it:
+#   1. Open the "Terminal" app (search for it with Cmd + Space).
+#   2. Type:  bash  (with a trailing space) -- do NOT press Enter yet.
+#   3. Drag this file into the Terminal window and press Enter.
+# (Dragging the file passes its full path, so it works no matter which folder
+#  Terminal opened in.)
 #
 
 # --- Mac only ---

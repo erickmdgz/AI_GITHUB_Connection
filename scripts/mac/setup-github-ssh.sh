@@ -4,8 +4,10 @@
 #
 # How to use it:
 #   1. Open the "Terminal" app (search for it with Cmd + Space).
-#   2. Type:  bash  (with a trailing space)
+#   2. Type:  bash  (with a trailing space) -- do NOT press Enter yet.
 #   3. Drag this file into the Terminal window and press Enter.
+# (Dragging the file passes its full path, so it works no matter which folder
+#  Terminal opened in.)
 #
 
 # --- Mac only ---
