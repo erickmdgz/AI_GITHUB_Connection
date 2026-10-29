@@ -10,6 +10,9 @@
 # (Dragging the file passes its full path, so it works no matter which folder
 #  Terminal opened in.)
 #
+# For AI agents: it never asks anything. Exit code 0 means everything is ready;
+# 1 means something has to be fixed (the lines marked ❌ say what).
+#
 
 # --- Mac only ---
 if [ "$(uname)" != "Darwin" ]; then
@@ -25,6 +28,17 @@ echo "   Checking the connection with GitHub"
 echo "════════════════════════════════════════════════"
 echo ""
 
+# The connection is tested first: whether it works decides how serious a
+# missing key file is (point 1). Without a terminal nobody can type a
+# passphrase, so BatchMode keeps ssh from waiting for one.
+echo "   Testing the connection with GitHub (may take a few seconds)..."
+echo ""
+BATCH=""
+[ -t 0 ] || BATCH="-o BatchMode=yes"
+RESULT=$(ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 $BATCH -T git@github.com 2>&1)
+CONNECTED=0
+echo "$RESULT" | grep -q "successfully authenticated" && CONNECTED=1
+
 # --- 1. Does the SSH key exist? ---
 KEY="$HOME/.ssh/id_ed25519"
 if [ -f "$KEY" ] && [ -f "$KEY.pub" ]; then
@@ -33,6 +47,9 @@ elif ls "$HOME"/.ssh/*.pub > /dev/null 2>&1; then
   echo "🟡 1. SSH key: you have a key, but with a different name:"
   ls "$HOME"/.ssh/*.pub
   echo "      (it may work, but it isn't the one our script creates)"
+elif [ "$CONNECTED" -eq 1 ]; then
+  echo "🟡 1. SSH key: there's no key file in ~/.ssh, but the connection works"
+  echo "      (the key is kept somewhere else, such as an SSH agent)."
 else
   echo "❌ 1. SSH key: does not exist."
   echo "      → Run the  setup-github-ssh.sh  script"
@@ -49,10 +66,8 @@ else
 fi
 echo ""
 
-# --- 3. Does the connection to GitHub work? ---
-echo "   Testing the connection with GitHub (may take a few seconds)..."
-RESULT=$(ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -T git@github.com 2>&1)
-if echo "$RESULT" | grep -q "successfully authenticated"; then
+# --- 3. Does the connection to GitHub work? (tested at the top) ---
+if [ "$CONNECTED" -eq 1 ]; then
   USER=$(echo "$RESULT" | sed -n 's/^Hi \([^!]*\)!.*/\1/p')
   echo "✅ 3. GitHub connection: works. Signed in as: $USER"
 else
@@ -101,6 +116,25 @@ else
 fi
 echo ""
 
+# --- 6. Is the GitHub CLI (gh) installed? ---
+GHBIN=$(command -v gh 2>/dev/null)
+if [ -n "$GHBIN" ] && "$GHBIN" --version > /dev/null 2>&1; then
+  echo "✅ 6. GitHub CLI installed: $("$GHBIN" --version | head -n 1)"
+else
+  echo "❌ 6. GitHub CLI installed: no. To install it:"
+  if command -v brew > /dev/null 2>&1; then
+    echo "      → You have Homebrew, so run this command:  brew install gh"
+  else
+    echo "      → Open https://github.com/cli/cli/releases/latest and, under 'Assets',"
+    echo "        download the file that ends in  macOS_universal.pkg . Then open it."
+    echo "      → macOS blocks it the first time (GitHub doesn't sign it yet): go to"
+    echo "        System Settings → Privacy & Security, click 'Open Anyway' and follow the installer."
+  fi
+  echo "      (The  setup-github-ssh.sh  script walks you through it step by step.)"
+  PROBLEMS=$((PROBLEMS + 1))
+fi
+echo ""
+
 # --- Summary ---
 echo "════════════════════════════════════════════════"
 if [ "$PROBLEMS" -eq 0 ]; then
@@ -110,3 +144,4 @@ else
 fi
 echo "════════════════════════════════════════════════"
 echo ""
+[ "$PROBLEMS" -eq 0 ] || exit 1

@@ -15,12 +15,77 @@
 # (Dragging the file passes its full path, so it works no matter which folder
 #  Terminal opened in.)
 #
+# For AI agents -- no questions:
+#   bash fix-github-email.sh --agent --email "you@example.com" [--name "Your Name"]
+#
 
 # --- Mac only ---
 if [ "$(uname)" != "Darwin" ]; then
   echo "❌ This script is for Mac only."
   exit 1
 fi
+
+# --- Options (a person running the script doesn't need any) ---
+USAGE='Usage: bash fix-github-email.sh [--agent] [--email "you@example.com"] [--name "Your Name"]'
+EMAIL_ARG=""
+NAME_ARG=""
+AGENT=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --agent) AGENT=1 ;;
+    --email|--name)
+      if [ -z "$2" ] || [ "${2#--}" != "$2" ]; then
+        echo "❌ $1 needs a value."
+        echo "   $USAGE"
+        exit 1
+      fi
+      if [ "$1" = "--email" ]; then EMAIL_ARG="$2"; else NAME_ARG="$2"; fi
+      shift ;;
+    --email=*) EMAIL_ARG="${1#*=}" ;;
+    --name=*) NAME_ARG="${1#*=}" ;;
+    -h|--help) echo "$USAGE"; exit 0 ;;
+    *)
+      echo "❌ Unknown option: $1"
+      echo "   $USAGE"
+      exit 1 ;;
+  esac
+  shift
+done
+
+# Email check: something@something.something, without spaces.
+looks_like_email() {
+  case "$1" in
+    *" "*|*@*@*) return 1 ;;
+    ?*@?*.?*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+if [ -n "$EMAIL_ARG" ] && ! looks_like_email "$EMAIL_ARG"; then
+  echo "❌ --email doesn't look like an email address: $EMAIL_ARG"
+  exit 1
+fi
+
+# Nobody can answer questions when the input isn't a terminal (for example,
+# when an AI agent runs the script), so it then works as with --agent.
+[ -t 0 ] || AGENT=1
+
+# Ask the person something. It fails when nobody can answer (agent mode, or the
+# input has ended), so no question is ever repeated forever.
+ask() {
+  [ "$AGENT" -eq 1 ] && return 1
+  read -r -p "$1" "$2" && return 0
+  AGENT=1
+  echo ""
+  return 1
+}
+
+# In agent mode a missing answer can't be asked for: it has to come as an option.
+missing_option() {
+  echo ""
+  echo "❌ Missing $2. Run the script again adding:  $1 \"...\""
+  exit 1
+}
 
 KEY="$HOME/.ssh/id_ed25519"
 
@@ -56,37 +121,47 @@ echo "   Name:  ${CURRENT_NAME:-(not set)}"
 echo "   Email: ${CURRENT_EMAIL:-(not set)}"
 echo ""
 
-# --- Ask for the correct email, with confirmation to avoid another typo ---
-while true; do
-  NEW=""
-  while [ -z "$NEW" ]; do
-    read -r -p "👉 Type the CORRECT email of your GitHub account and press Enter: " NEW
+# --- The correct email: given as an option, or asked with confirmation to avoid another typo ---
+NEW="$EMAIL_ARG"
+while [ -z "$NEW" ]; do
+  CANDIDATE=""
+  while ! looks_like_email "$CANDIDATE"; do
+    [ -n "$CANDIDATE" ] && echo "   That doesn't look like an email address. Please try again."
+    ask "👉 Type the CORRECT email of your GitHub account and press Enter: " CANDIDATE ||
+      missing_option "--email" "the correct email"
   done
   echo ""
-  read -r -p "   Confirm the email is  $NEW ?  (type Y for yes, N to type it again): " CONF
+  ask "   Confirm the email is  $CANDIDATE ?  (type Y for yes, N to type it again): " CONF ||
+    missing_option "--email" "the correct email"
   echo ""
   if [ "$CONF" = "Y" ] || [ "$CONF" = "y" ]; then
-    break
+    NEW="$CANDIDATE"
   fi
 done
 
 # --- Fix the Git email (the important part) ---
-git config --global user.email "$NEW"
+if ! git config --global user.email "$NEW"; then
+  echo "❌ Couldn't save the email in Git."
+  exit 1
+fi
 echo "✅ Git email fixed: $NEW"
 
-# --- If the name is missing, set it now too ---
-if [ -z "$CURRENT_NAME" ]; then
-  NAME=""
+# --- Set the name if it was given, or if it's missing ---
+NAME="$NAME_ARG"
+if [ -z "$NAME" ] && [ -z "$CURRENT_NAME" ]; then
   while [ -z "$NAME" ]; do
-    read -r -p "👉 Your name is also missing. Type it and press Enter: " NAME
+    ask "👉 Your name is also missing. Type it and press Enter: " NAME ||
+      missing_option "--name" "your name"
   done
+fi
+if [ -n "$NAME" ]; then
   git config --global user.name "$NAME"
   echo "✅ Name configured: $NAME"
 fi
 
 # --- Update the SSH key's label (cosmetic only) ---
 if [ -f "$KEY" ]; then
-  if ssh-keygen -c -C "$NEW" -f "$KEY" -P "" > /dev/null 2>&1; then
+  if ssh-keygen -c -C "$NEW" -f "$KEY" -P "" < /dev/null > /dev/null 2>&1; then
     echo "✅ SSH key label updated."
   else
     echo "🟡 Couldn't update the key label (this does not affect the connection at all)."
@@ -98,7 +173,9 @@ fi
 # --- Verify the connection with GitHub still works ---
 echo ""
 echo "Checking the connection with GitHub..."
-RESULT=$(ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -T git@github.com 2>&1)
+BATCH=""
+[ "$AGENT" -eq 1 ] && BATCH="-o BatchMode=yes"
+RESULT=$(ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 $BATCH -T git@github.com 2>&1)
 if echo "$RESULT" | grep -q "successfully authenticated"; then
   USER=$(echo "$RESULT" | sed -n 's/^Hi \([^!]*\)!.*/\1/p')
   echo "✅ GitHub connection: works. Signed in as: $USER"
